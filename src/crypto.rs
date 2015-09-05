@@ -2,16 +2,16 @@ use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
 use std::string::String;
 
-pub fn get_key(password: &str, salt: pwhash::Salt) -> secretbox::Key {
+pub fn get_key(password: &str, salt: pwhash::Salt) -> Result<secretbox::Key, ()> {
     let password_bytes = password.as_bytes();
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
     {
         let secretbox::Key(ref mut key_bytes) = key;
-        pwhash::derive_key(key_bytes, password_bytes, &salt,
+        try!(pwhash::derive_key(key_bytes, password_bytes, &salt,
                            pwhash::OPSLIMIT_INTERACTIVE,
-                           pwhash::MEMLIMIT_INTERACTIVE).unwrap();
+                           pwhash::MEMLIMIT_INTERACTIVE));
     }
-    key
+    Ok(key)
 }
 
 pub fn encrypt_password(plaintext: &str, key: &secretbox::Key,
@@ -46,10 +46,10 @@ mod test {
         let key_salt = pwhash::gen_salt();
         let encrypted: Vec<u8>;
         {
-            let key = get_key(password, key_salt);
+            let key = get_key(password, key_salt).unwrap();
             encrypted = encrypt_password(plaintext, &key, &nonce);
         }
-        let key = get_key(password, key_salt);
+        let key = get_key(password, key_salt).unwrap();
         let decrypted = decrypt_password(&encrypted, &key, &nonce)
             .unwrap();
         assert_eq!(plaintext.to_string(), decrypted);
