@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["david <david.smitmanis@gmail.com>"]
 
 [dependencies]
-sodiumoxide = "*"
+getopts = "*"
+sodiumoxide = "0.0.8"
