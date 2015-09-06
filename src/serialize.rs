@@ -72,4 +72,23 @@ mod test {
         assert_eq!(result, Err(PasswordRetrieveError::AccountNotFound));
 
     }
+
+    #[test]
+    fn test_empty_account_structure() {
+        let account_structure = "{}";
+        let result = get_password_data_for("gmail", account_structure);
+        assert_eq!(result, Err(PasswordRetrieveError::AccountNotFound));
+    }
+
+    #[test]
+    fn test_partial_account_structure() {
+        let account_structure = "{
+            \"gmail\": {
+                \"nonce\": \"sadAdsasd\",
+                \"password_hash\": \"dsadsaFGd\"
+            }
+        }";
+        let result = get_password_data_for("gmail", account_structure);
+        assert_eq!(result, Err(PasswordRetrieveError::SyntaxError));
+    }
 }
