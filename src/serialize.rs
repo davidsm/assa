@@ -70,7 +70,6 @@ mod test {
     fn test_account_doesnt_exist() {
         let result = get_password_data_for("nosuchaccount", VALID_ACCOUNT_STRUCTURE);
         assert_eq!(result, Err(PasswordRetrieveError::AccountNotFound));
-
     }
 
     #[test]
