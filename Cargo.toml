@@ -5,3 +5,4 @@ authors = ["david <david.smitmanis@gmail.com>"]
 
 [dependencies]
 sodiumoxide = "0.0.8"
+rustc-serialize = "0.3"

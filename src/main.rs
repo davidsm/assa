@@ -1,9 +1,9 @@
 extern crate sodiumoxide;
+extern crate rustc_serialize;
+
 mod crypto;
-use std::str;
+mod serialize;
 
 fn main() {
-    // let key = crypto::get_key("dsds");
-    // let sodiumoxide::crypto::secretbox::Key(ref bleh) = key;
-    // println!("key: {}", str::from_utf8(bleh).unwrap());
+
 }
