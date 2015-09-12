@@ -7,7 +7,7 @@ type AccountMap = HashMap<String, PasswordData>;
 pub struct PasswordData {
     pub nonce: String,
     pub salt: String,
-    pub password_hash: String
+    pub password: String
 }
 
 #[derive(Debug, PartialEq)]
@@ -95,13 +95,13 @@ mod test {
     \"gmail\": {
         \"nonce\": \"sadAdsasd\",
         \"salt\": \"dadasGDsds=\",
-        \"password_hash\": \"dsadsaFGd\"
+        \"password\": \"dsadsaFGd\"
     },
 
     \"something\": {
         \"nonce\": \"sadAdsasd\",
         \"salt\": \"dadasGDsds=\",
-        \"password_hash\": \"Egsdsads\"
+        \"password\": \"Egsdsads\"
     }
 
 }";
@@ -109,7 +109,7 @@ mod test {
     #[test]
     fn test_get_password_data() {
         let password_data = get_password_data_for("gmail", VALID_ACCOUNT_STRUCTURE).unwrap();
-        assert_eq!(&password_data.password_hash, "dsadsaFGd");
+        assert_eq!(&password_data.password, "dsadsaFGd");
         assert_eq!(&password_data.nonce, "sadAdsasd");
         assert_eq!(&password_data.salt, "dadasGDsds=");
     }
@@ -132,7 +132,7 @@ mod test {
         let account_structure = "{
             \"gmail\": {
                 \"nonce\": \"sadAdsasd\",
-                \"password_hash\": \"dsadsaFGd\"
+                \"password\": \"dsadsaFGd\"
             }
         }";
         let result = get_password_data_for("gmail", account_structure);
@@ -144,13 +144,13 @@ mod test {
         let pwdata = PasswordData {
             salt: "dsdsds".to_string(),
             nonce: "abvcasd".to_string(),
-            password_hash: "dsadsaD".to_string()
+            password: "dsadsaD".to_string()
         };
         let new_json_structure = add_account("twitter", pwdata, VALID_ACCOUNT_STRUCTURE).unwrap();
         let twitter_password = get_password_data_for("twitter", &new_json_structure).unwrap();
-        assert_eq!(&twitter_password.password_hash, "dsadsaD");
+        assert_eq!(&twitter_password.password, "dsadsaD");
         let gmail_password = get_password_data_for("gmail", &new_json_structure).unwrap();
-        assert_eq!(&gmail_password.password_hash, "dsadsaFGd");
+        assert_eq!(&gmail_password.password, "dsadsaFGd");
     }
 
     #[test]
@@ -158,11 +158,11 @@ mod test {
         let pwdata = PasswordData {
             salt: "dsdsds".to_string(),
             nonce: "abvcasd".to_string(),
-            password_hash: "dsadsaD".to_string()
+            password: "dsadsaD".to_string()
         };
         let new_json_structure = change_account("gmail", pwdata, VALID_ACCOUNT_STRUCTURE).unwrap();
         let gmail_password = get_password_data_for("gmail", &new_json_structure).unwrap();
-        assert_eq!(&gmail_password.password_hash, "dsadsaD");
+        assert_eq!(&gmail_password.password, "dsadsaD");
     }
 
     #[test]
@@ -171,6 +171,6 @@ mod test {
         let gmail_password = get_password_data_for("gmail", &new_json_structure);
         assert_eq!(gmail_password, Err(AccountError::AccountNotFound));
         let something_password = get_password_data_for("something", &new_json_structure).unwrap();
-        assert_eq!(&something_password.password_hash, "Egsdsads");
+        assert_eq!(&something_password.password, "Egsdsads");
     }
 }
