@@ -70,10 +70,16 @@ pub fn change_account(account_name: &str, password_data: PasswordData,
 }
 
 pub fn remove_account(account_name: &str,
-                      accounts: &str,) -> Result<(), AccountError> {
+                      accounts: &str,) -> Result<String, AccountError> {
     let mut account_map = try!(get_account_map(accounts));
 
-    account_map.remove(account_name).map(|_| { () }).ok_or(AccountNotFound)
+    if account_map.remove(account_name).is_none() {
+        return Err(AccountNotFound)
+    }
+    match json::encode(&account_map) {
+        Ok(json_account_map) => Ok(json_account_map),
+        Err(_) => Err(SyntaxError)
+    }
 }
 
 fn get_account_map(accounts: &str) -> Result<AccountMap, AccountError> {
@@ -95,7 +101,7 @@ mod test {
     \"something\": {
         \"nonce\": \"sadAdsasd\",
         \"salt\": \"dadasGDsds=\",
-        \"password_hash\": \"dsadsaFGd\"
+        \"password_hash\": \"Egsdsads\"
     }
 
 }";
@@ -157,5 +163,14 @@ mod test {
         let new_json_structure = change_account("gmail", pwdata, VALID_ACCOUNT_STRUCTURE).unwrap();
         let gmail_password = get_password_data_for("gmail", &new_json_structure).unwrap();
         assert_eq!(&gmail_password.password_hash, "dsadsaD");
+    }
+
+    #[test]
+    fn test_remove_account() {
+        let new_json_structure = remove_account("gmail", VALID_ACCOUNT_STRUCTURE).unwrap();
+        let gmail_password = get_password_data_for("gmail", &new_json_structure);
+        assert_eq!(gmail_password, Err(AccountError::AccountNotFound));
+        let something_password = get_password_data_for("something", &new_json_structure).unwrap();
+        assert_eq!(&something_password.password_hash, "Egsdsads");
     }
 }
