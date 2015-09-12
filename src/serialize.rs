@@ -17,6 +17,12 @@ pub enum AccountError {
     AccountAlreadyExists
 }
 
+impl From<json::DecoderError> for AccountError {
+    fn from(err: json::DecoderError) -> AccountError {
+        AccountError::SyntaxError
+    }
+}
+
 use self::AccountError::*;
 
 pub fn get_password_data_for(account_name: &str,
@@ -25,14 +31,7 @@ pub fn get_password_data_for(account_name: &str,
     let mut account_map = try!(get_account_map(accounts));
 
     // Pluck the PasswordData struct from the map to gain ownership of it
-    let password_data = match account_map.remove(account_name) {
-        Some(pwdata) => pwdata,
-        None => {
-            return Err(AccountNotFound);
-        }
-    };
-
-    Ok(password_data)
+    account_map.remove(account_name).ok_or(AccountNotFound)
 }
 
 pub fn add_account(account_name: &str, password_data: PasswordData,
@@ -74,25 +73,12 @@ pub fn remove_account(account_name: &str,
                       accounts: &str,) -> Result<(), AccountError> {
     let mut account_map = try!(get_account_map(accounts));
 
-    match account_map.remove(account_name) {
-        Some(pwdata) => pwdata,
-        None => {
-            return Err(AccountNotFound);
-        }
-    };
-
-    Ok(())
+    account_map.remove(account_name).map(|_| { () }).ok_or(AccountNotFound)
 }
 
 fn get_account_map(accounts: &str) -> Result<AccountMap, AccountError> {
-    let account_map: AccountMap = match json::decode(accounts) {
-        Ok(accmap) => accmap,
-        Err(_) => {
-            return Err(SyntaxError);
-        }
-    };
-
-    Ok(account_map)
+    let accmap: AccountMap = try!(json::decode(accounts));
+    Ok(accmap)
 }
 
 #[cfg(test)]
