@@ -38,7 +38,8 @@ pub struct PasswordData {
 
 #[derive(Debug, PartialEq)]
 pub enum AccountError {
-    SyntaxError(SyntaxErrorType),
+    DeserializationError(DeserializationErrorType),
+    SerializationError(SerializationErrorType),
     AccountNotFound,
     AccountAlreadyExists
 }
@@ -46,21 +47,41 @@ pub enum AccountError {
 impl From<json::DecoderError> for AccountError {
     fn from(err: json::DecoderError) -> AccountError {
         match err {
-            json::DecoderError::ApplicationError(_) => SyntaxError(Base64Error),
-            _ => SyntaxError(InvalidJSON)
+            json::DecoderError::ApplicationError(_) => DeserializationError(Base64Error),
+            _ => DeserializationError(InvalidJSON)
         }
     }
 }
 
+impl From<json::EncoderError> for AccountError {
+    fn from (err: json::EncoderError) -> AccountError {
+        match err {
+            json::EncoderError::FmtError(_) => SerializationError(FormattingError),
+            json::EncoderError::BadHashmapKey => SerializationError(InvalidKey)
+        }
+    }
+}
+
+
 use self::AccountError::*;
 
 #[derive(Debug, PartialEq)]
-pub enum SyntaxErrorType {
+pub enum DeserializationErrorType {
     Base64Error,
     InvalidJSON,
 }
 
-use self::SyntaxErrorType::*;
+use self::DeserializationErrorType::*;
+
+
+#[derive(Debug, PartialEq)]
+pub enum SerializationErrorType {
+    InvalidKey,
+    FormattingError
+}
+
+use self::SerializationErrorType::*;
+
 
 pub fn get_password_data_for(account_name: &str,
                              accounts: &str,) -> Result<PasswordData, AccountError> {
@@ -79,12 +100,7 @@ pub fn add_account(account_name: &str, password_data: PasswordData,
     }
     else {
         account_map.insert(account_name.to_string(), password_data);
-        match json::encode(&account_map) {
-            Ok(json_account_map) => Ok(json_account_map),
-            Err(_) => {
-                return Err(SyntaxError(InvalidJSON));
-            }
-        }
+        json::encode(&account_map).map_err(|err| { AccountError::from(err) })
     }
 }
 
@@ -96,12 +112,7 @@ pub fn change_account(account_name: &str, password_data: PasswordData,
     }
     else {
         account_map.insert(account_name.to_string(), password_data);
-        match json::encode(&account_map) {
-            Ok(json_account_map) => Ok(json_account_map),
-            Err(_) => {
-                return Err(SyntaxError(InvalidJSON));
-            }
-        }
+        json::encode(&account_map).map_err(|err| { AccountError::from(err) })
     }
 }
 
@@ -112,10 +123,7 @@ pub fn remove_account(account_name: &str,
     if account_map.remove(account_name).is_none() {
         return Err(AccountNotFound)
     }
-    match json::encode(&account_map) {
-        Ok(json_account_map) => Ok(json_account_map),
-        Err(_) => Err(SyntaxError(InvalidJSON))
-    }
+    json::encode(&account_map).map_err(|err| { AccountError::from(err) })
 }
 
 fn get_account_map(accounts: &str) -> Result<AccountMap, AccountError> {
@@ -181,7 +189,7 @@ mod test {
           }
         }";
         let result = get_password_data_for("gmail", account_structure);
-        assert_eq!(result, Err(AccountError::SyntaxError(SyntaxErrorType::InvalidJSON)));
+        assert_eq!(result, Err(AccountError::DeserializationError(DeserializationErrorType::InvalidJSON)));
     }
 
     #[test]
@@ -196,6 +204,17 @@ mod test {
         assert_eq!(twitter_password.password, BinaryData(vec![0x01, 0x02, 0x03, 0x04]));
         let gmail_password = get_password_data_for("gmail", &new_json_structure).unwrap();
         assert_eq!(gmail_password.password, BinaryData(vec![0xDE, 0xAD, 0xBE, 0xEF]));
+    }
+
+    #[test]
+    fn test_add_account_already_exists() {
+        let pwdata = PasswordData {
+            salt: BinaryData(vec![0x04, 0x08, 0x0A, 0x0C]),
+            nonce: BinaryData(vec![0x01, 0x03, 0x05, 0x07]),
+            password: BinaryData(vec![0x01, 0x02, 0x03, 0x04])
+        };
+        let res = add_account("gmail", pwdata, VALID_ACCOUNT_STRUCTURE);
+        assert_eq!(res, Err(AccountError::AccountAlreadyExists));
     }
 
     #[test]
