@@ -52,7 +52,7 @@ fn main() {
 
     let app_matches = clap::App::new("assa")
         .version("0.1.0")
-        .about("Command-line key manager")
+        .about("Command-line password manager")
         .setting(clap::AppSettings::GlobalVersion)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .versionless_subcommands(true)
