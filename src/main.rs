@@ -55,7 +55,6 @@ fn main() {
         .about("Command-line password manager")
         .setting(clap::AppSettings::GlobalVersion)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-        .versionless_subcommands(true)
         .subcommand(cmd_get)
         .subcommand(cmd_new)
         .subcommand(cmd_change)
