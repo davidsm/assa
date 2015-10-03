@@ -7,3 +7,4 @@ authors = ["david <david.smitmanis@gmail.com>"]
 sodiumoxide = "0.0.8"
 rustc-serialize = "0.3"
 clap = "1.4.2"
+rpassword = "0.0.6"
