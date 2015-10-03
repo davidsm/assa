@@ -2,6 +2,8 @@ use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
 use std::string::String;
 
+use super::password::{PasswordData, generate_password};
+
 pub fn get_key(password: &str, salt: pwhash::Salt) -> Result<secretbox::Key, ()> {
     let password_bytes = password.as_bytes();
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
@@ -27,6 +29,20 @@ pub fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
         Ok(decrypted_text) => Ok(decrypted_text),
         Err(_) => Err(())
     }
+}
+
+pub fn create_encrypted_password(master_password: &str) -> Result<PasswordData, ()> {
+    let plaintext_password = generate_password();
+
+    let salt = pwhash::gen_salt();
+    let key = try!(get_key(master_password, salt));
+
+    let nonce = secretbox::gen_nonce();
+    let encrypted_password = encrypt_password(&plaintext_password, &key, &nonce);
+
+    let secretbox::Nonce(nonce_bytes) = nonce;
+    let pwhash::Salt(salt_bytes) = salt;
+    Ok(PasswordData::new(encrypted_password, salt_bytes.to_vec(), nonce_bytes.to_vec()))
 }
 
 #[cfg(test)]
