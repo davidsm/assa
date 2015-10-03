@@ -4,6 +4,8 @@ use rustc_serialize::base64;
 use rustc_serialize::base64::{ToBase64, FromBase64};
 use std::collections::HashMap;
 
+use super::password::PasswordData;
+
 type AccountMap = HashMap<String, PasswordData>;
 
 #[derive(Debug, PartialEq)]
@@ -29,12 +31,6 @@ impl Decodable for BinaryData {
     }
 }
 
-#[derive(RustcDecodable, RustcEncodable, Debug, PartialEq)]
-pub struct PasswordData {
-    pub nonce: BinaryData,
-    pub salt: BinaryData,
-    pub password: BinaryData
-}
 
 #[derive(Debug, PartialEq)]
 pub enum AccountError {
@@ -135,6 +131,7 @@ fn get_account_map(accounts: &str) -> Result<AccountMap, AccountError> {
 mod test {
     use super::*;
     use super::{get_account_map, AccountMap};
+    use super::super::password::PasswordData;
 
 
     // gmail

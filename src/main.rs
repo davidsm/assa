@@ -4,6 +4,8 @@ extern crate clap;
 
 mod crypto;
 mod serialize;
+mod password;
+
 
 fn do_get(account: &str) {
     unimplemented!();
