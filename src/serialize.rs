@@ -134,6 +134,7 @@ fn get_account_map(accounts: &str) -> Result<AccountMap, AccountError> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use super::{get_account_map, AccountMap};
 
 
     // gmail
@@ -236,5 +237,11 @@ mod test {
         assert_eq!(gmail_password, Err(AccountError::AccountNotFound));
         let something_password = get_password_data_for("something", &new_json_structure).unwrap();
         assert_eq!(something_password.password, BinaryData(vec![0xF0, 0x0D, 0xBE, 0xEF]));
+    }
+
+    #[test]
+    fn test_get_new_account_map() {
+        let acc_map = get_account_map("{}");
+        assert_eq!(acc_map, Ok(AccountMap::new()));
     }
 }
