@@ -15,128 +15,127 @@ mod serialize;
 mod password;
 
 
-fn do_get(account: &str, password_file_path: &PathBuf) {
-    let account_map = handle_read_result(read_password_file(password_file_path));
+fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
+    let account_map = try!(read_password_file(password_file_path));
     let password_data = match serialize::get_password_data_for(account, &account_map) {
         Ok(pwdata) => pwdata,
         Err(serialize::AccountError::AccountNotFound) => {
-            println!("Account not found");
-            process::exit(1);
+            return Err("Account not found");
         },
         Err(_) => {
-            println!("Something went wrong. Beats me what");
-            process::exit(1);
+            return Err("Something went wrong. Beats me what");
         }
     };
-    let master_password = prompt_for_password(false);
+    let master_password = try!(prompt_for_password(false));
     let decrypted_password = match crypto::get_decrypted_password(&master_password,
                                                                   password_data) {
         Ok(pw) => pw,
         Err(_) => {
-            println!("Wrong master password");
-            process::exit(1);
+            return Err("Wrong master password");
         }
     };
     println!("Password for {} is {}", account, decrypted_password);
+    Ok(())
 }
 
-fn do_new(account: &str, password_file_path: &PathBuf) {
-    let account_map = handle_read_result(read_password_file(password_file_path));
-    let master_password = prompt_for_password(true);
+fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
+    let account_map = try!(read_password_file(password_file_path));
+    let master_password = try!(prompt_for_password(true));
     let plaintext_password = password::generate_password();
     let password_data = match crypto::create_encrypted_password(&plaintext_password,
                                                                 &master_password) {
         Ok(pwdata) => pwdata,
         Err(_) => {
             // When fixing error handling in crypto, update this
-            println!("Something went wrong. Beats me what");
-            process::exit(1);
+            return Err("Something went wrong. Beats me what");
         }
     };
 
-    // TODO: Handle error
-    let output = serialize::add_account(account, password_data, &account_map).unwrap();
+    let output = match serialize::add_account(account, password_data, &account_map) {
+        Ok(data) => data,
+        Err(serialize::AccountError::AccountAlreadyExists) => {
+            return Err("Account already exists");
+        }
+        Err(_) => {
+            return Err("Something went wrong. Beats me what");
+        }
+    };
 
-    // TODO: Handle error
-    write_password_file(password_file_path, &output);
+    try!(write_password_file(password_file_path, &output));
     println!("Password {} saved for {}", plaintext_password, account);
+    Ok(())
 }
 
-fn do_change(account: &str, password_file_path: &PathBuf) {
+fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     unimplemented!();
 }
 
-fn do_delete(account: &str, password_file_path: &PathBuf) {
+fn do_delete(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     unimplemented!();
 }
 
-fn prompt_for_password(repeat: bool) -> String {
+fn prompt_for_password(repeat: bool) -> Result<String, &'static str> {
     println!("Enter master password:");
-    let pw1 = read_password();
+    let pw1 = try!(read_password());
     if repeat {
         println!("Repeat master password:");
-        let pw2 = read_password();
+        let pw2 = try!(read_password());
         if pw1 == pw2 {
-            pw1
+            Ok(pw1)
         }
         else {
-            println!("Passwords do not match");
-            process::exit(1);
+            Err("Passwords do not match")
         }
     }
     else {
-        pw1
+        Ok(pw1)
     }
 }
 
-fn read_password() -> String {
+fn read_password() -> Result<String, &'static str> {
     match rpassword::read_password() {
         Ok(password) => {
-            if password.len() > 0 { password }
+            if password.len() > 0 { Ok(password) }
             else {
-                println!("No password entered");
-                process::exit(1);
+                Err("No password entered")
             }
         },
         Err(_) => {
-            println!("Failed to read password");
-            process::exit(1);
+            Err("Failed to read password")
         }
     }
 }
 
-fn read_password_file(path: &PathBuf) -> io::Result<String> {
-    let mut f = try!(File::open(path));
-    let mut output = String::new();
-    try!(f.read_to_string(&mut output));
-    Ok(output)
-}
-
-// Convenience function for handling results from reading
-// the password file. Exits program on unexpected errors
-fn handle_read_result(res: io::Result<String>) -> String {
-    match res {
-        Ok(content) => content,
-        Err(err) => {
-            match err.kind() {
-                io::ErrorKind::NotFound => {
-                    println!("Password file doesn't exist. Creating a new file");
-                    "{}".to_string()
-                },
-                _ => {
-                    println!("Error reading from password file");
-                    process::exit(1);
+fn read_password_file(path: &PathBuf) -> Result<String, &'static str> {
+    File::open(path).or(Err("Failed to open password file"))
+        .and_then(|mut f| {
+            let mut output = String::new();
+            match f.read_to_string(&mut output) {
+                Ok(_) => Ok(output),
+                Err(err) => {
+                    match err.kind() {
+                        io::ErrorKind::NotFound => {
+                            println!("Password file doesn't exist. Creating a new file");
+                            Ok("{}".to_string())
+                        },
+                        _ => {
+                            Err("Error reading from password file")
+                        }
+                    }
                 }
             }
-        }
-    }
+        })
 }
 
-fn write_password_file(path: &PathBuf, content: &str) -> io::Result<()> {
+fn write_password_file(path: &PathBuf, content: &str) -> Result<(), &'static str> {
     // TODO: Consider setting mode bits to some decent value
-    let mut f = try!(File::create(path));
-    try!(f.write_all(content.as_bytes()));
-    Ok(())
+    File::create(path)
+        .or(Err("Failed to open file for writing"))
+        .and_then(|mut f| {
+            f.write_all(content.as_bytes())
+                .or(Err("Failed to write to file"))
+                .and(Ok(()))
+        })
 }
 
 fn default_password_file() -> Option<PathBuf> {
@@ -204,7 +203,7 @@ fn main() {
             }
         };
 
-    match app_matches.subcommand() {
+    let result = match app_matches.subcommand() {
         ("get", Some(matches)) => do_get(matches.value_of("ACCOUNT").unwrap(),
                                          &password_file_path),
         ("new", Some(matches)) => do_new(matches.value_of("ACCOUNT").unwrap(),
@@ -214,6 +213,14 @@ fn main() {
         ("delete", Some(matches)) => do_delete(matches.value_of("ACCOUNT").unwrap(),
                                                &password_file_path),
         (_, _) => unreachable!() // Subcommands are required by clap, so should not reach this point
+    };
+
+    match result {
+        Err(msg) => {
+            println!("{}", msg);
+            process::exit(1);
+        },
+        Ok(_) => {}
     }
 
 }
