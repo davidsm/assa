@@ -28,7 +28,7 @@ fn do_get(account: &str, password_file_path: &PathBuf) {
             process::exit(1);
         }
     };
-    let master_password = prompt_for_password();
+    let master_password = prompt_for_password(false);
     let decrypted_password = match crypto::get_decrypted_password(&master_password,
                                                                   password_data) {
         Ok(pw) => pw,
@@ -42,7 +42,7 @@ fn do_get(account: &str, password_file_path: &PathBuf) {
 
 fn do_new(account: &str, password_file_path: &PathBuf) {
     let account_map = handle_read_result(read_password_file(password_file_path));
-    let master_password = prompt_for_password();
+    let master_password = prompt_for_password(true);
     let plaintext_password = password::generate_password();
     let password_data = match crypto::create_encrypted_password(&plaintext_password,
                                                                 &master_password) {
@@ -70,11 +70,29 @@ fn do_delete(account: &str, password_file_path: &PathBuf) {
     unimplemented!();
 }
 
-fn prompt_for_password() -> String {
+fn prompt_for_password(repeat: bool) -> String {
     println!("Enter master password:");
+    let pw1 = read_password();
+    if repeat {
+        println!("Repeat master password:");
+        let pw2 = read_password();
+        if pw1 == pw2 {
+            pw1
+        }
+        else {
+            println!("Passwords do not match");
+            process::exit(1);
+        }
+    }
+    else {
+        pw1
+    }
+}
+
+fn read_password() -> String {
     match rpassword::read_password() {
         Ok(password) => {
-            if password.len() > 0 { return password }
+            if password.len() > 0 { password }
             else {
                 println!("No password entered");
                 process::exit(1);
@@ -85,7 +103,6 @@ fn prompt_for_password() -> String {
             process::exit(1);
         }
     }
-    println!("");
 }
 
 fn read_password_file(path: &PathBuf) -> io::Result<String> {
