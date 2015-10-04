@@ -4,7 +4,10 @@ use std::string::String;
 
 use super::password::{PasswordData, generate_password};
 
-pub fn get_key(password: &str, salt: pwhash::Salt) -> Result<secretbox::Key, ()> {
+pub use sodiumoxide::crypto::pwhash::SALTBYTES;
+pub use sodiumoxide::crypto::secretbox::NONCEBYTES;
+
+pub fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, ()> {
     let password_bytes = password.as_bytes();
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
     {
@@ -31,18 +34,25 @@ pub fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
     }
 }
 
-pub fn create_encrypted_password(master_password: &str) -> Result<PasswordData, ()> {
-    let plaintext_password = generate_password();
-
+pub fn create_encrypted_password(plaintext_password: &str, master_password: &str)
+                                 -> Result<PasswordData, ()> {
     let salt = pwhash::gen_salt();
-    let key = try!(get_key(master_password, salt));
+    let key = try!(get_key(master_password, &salt));
 
     let nonce = secretbox::gen_nonce();
-    let encrypted_password = encrypt_password(&plaintext_password, &key, &nonce);
+    let encrypted_password = encrypt_password(plaintext_password, &key, &nonce);
 
     let secretbox::Nonce(nonce_bytes) = nonce;
     let pwhash::Salt(salt_bytes) = salt;
-    Ok(PasswordData::new(encrypted_password, salt_bytes.to_vec(), nonce_bytes.to_vec()))
+    Ok(PasswordData::new(encrypted_password, salt_bytes, nonce_bytes))
+}
+
+pub fn get_decrypted_password(master_password: &str, password_data: PasswordData)
+                              -> Result<String, ()> {
+    let key = try!(get_key(master_password, &pwhash::Salt(password_data.salt())));
+    let decrypted_password = try!(decrypt_password(&password_data.password(),&key,
+                                                   &secretbox::Nonce(password_data.nonce())));
+    Ok(decrypted_password)
 }
 
 #[cfg(test)]

@@ -3,24 +3,41 @@ use rustc_serialize::base64;
 use rustc_serialize::base64::{ToBase64};
 
 use serialize::BinaryData;
+use crypto::SALTBYTES;
+use crypto::NONCEBYTES;
 
 const PASSWORD_BYTES_LENGTH: usize = 15;
 
 
 #[derive(RustcDecodable, RustcEncodable, Debug, PartialEq)]
 pub struct PasswordData {
-    pub nonce: BinaryData,
-    pub salt: BinaryData,
-    pub password: BinaryData
+    pub nonce: BinaryData<[u8; NONCEBYTES]>,
+    pub salt: BinaryData<[u8; SALTBYTES]>,
+    pub password: BinaryData<Vec<u8>>
 }
 
 impl PasswordData {
-    pub fn new(password: Vec<u8>, salt: Vec<u8>, nonce: Vec<u8>) -> PasswordData {
+    pub fn new(password: Vec<u8>, salt: [u8; SALTBYTES], nonce: [u8; NONCEBYTES]) -> PasswordData {
         PasswordData {
             password: BinaryData(password),
             salt: BinaryData(salt),
             nonce: BinaryData(nonce)
         }
+    }
+
+    pub fn password(&self) -> Vec<u8> {
+        let &BinaryData(ref pw) = &self.password;
+        pw.clone()
+    }
+
+    pub fn salt(&self) -> [u8; SALTBYTES] {
+        let &BinaryData(ref salt) = &self.salt;
+        salt.clone()
+    }
+
+    pub fn nonce(&self) -> [u8; NONCEBYTES] {
+        let &BinaryData(ref nonce) = &self.nonce;
+        nonce.clone()
     }
 }
 

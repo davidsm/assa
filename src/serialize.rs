@@ -4,30 +4,87 @@ use rustc_serialize::base64;
 use rustc_serialize::base64::{ToBase64, FromBase64};
 use std::collections::HashMap;
 
-use super::password::PasswordData;
+use password::PasswordData;
+use crypto::{SALTBYTES, NONCEBYTES};
 
 type AccountMap = HashMap<String, PasswordData>;
 
 #[derive(Debug, PartialEq)]
-pub struct BinaryData(pub Vec<u8>);
+pub struct BinaryData<T: Base64Encodable>(pub T);
 
-impl ToBase64 for BinaryData {
+impl<T: Base64Encodable> ToBase64 for BinaryData<T> {
     fn to_base64(&self, config: base64::Config) -> String {
-        self.0.to_base64(config)
+        self.0.base64_encode(config)
     }
 }
 
-impl Encodable for BinaryData {
+impl<T: Base64Encodable> Encodable for BinaryData<T> {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
         s.emit_str(&self.to_base64(base64::STANDARD))
     }
 }
 
-impl Decodable for BinaryData {
+impl Decodable for BinaryData<Vec<u8>> {
     fn decode<D: Decoder>(d: &mut D) -> Result<Self, D::Error> {
         let base64_str = try!(d.read_str());
         base64_str.from_base64().or(Err(d.error("Base64 decoding failed"))).
             and_then(|val| { Ok(BinaryData(val)) })
+    }
+}
+
+impl Decodable for BinaryData<[u8; SALTBYTES]> {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Self, D::Error> {
+        let base64_str = try!(d.read_str());
+        base64_str.from_base64().or(Err(d.error("Base64 decoding failed"))).
+            and_then(|val| {
+                let mut sb = [0; SALTBYTES];
+                for i in 0..val.len() {
+                    sb[i] = val[i];
+                }
+                Ok(BinaryData(sb))
+            })
+    }
+}
+
+impl Decodable for BinaryData<[u8; NONCEBYTES]> {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Self, D::Error> {
+        let base64_str = try!(d.read_str());
+        base64_str.from_base64().or(Err(d.error("Base64 decoding failed"))).
+            and_then(|val| {
+                let mut nb = [0; NONCEBYTES];
+                for i in 0..val.len() {
+                    nb[i] = val[i];
+                }
+                Ok(BinaryData(nb))
+            })
+    }
+}
+
+
+// Needed because ToBase64 isn't implemented for Vec,
+// and can't implement it as neither trait nor struct is
+// defined here
+pub trait Base64Encodable {
+    fn base64_encode(&self, config: base64::Config) -> String;
+}
+
+impl Base64Encodable for Vec<u8> {
+    fn base64_encode(&self, config: base64::Config)  -> String {
+        // Funny enough, this works, probably
+        // due to deref coercion to &[u8]
+        self.to_base64(config)
+    }
+}
+
+impl Base64Encodable for [u8; SALTBYTES] {
+    fn base64_encode(&self, config: base64::Config)  -> String {
+        self.to_base64(config)
+    }
+}
+
+impl Base64Encodable for [u8; NONCEBYTES] {
+    fn base64_encode(&self, config: base64::Config) -> String {
+        self.to_base64(config)
     }
 }
 

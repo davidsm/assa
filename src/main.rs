@@ -16,13 +16,36 @@ mod password;
 
 
 fn do_get(account: &str, password_file_path: &PathBuf) {
-    unimplemented!();
+    let account_map = handle_read_result(read_password_file(password_file_path));
+    let password_data = match serialize::get_password_data_for(account, &account_map) {
+        Ok(pwdata) => pwdata,
+        Err(serialize::AccountError::AccountNotFound) => {
+            println!("Account not found");
+            process::exit(1);
+        },
+        Err(_) => {
+            println!("Something went wrong. Beats me what");
+            process::exit(1);
+        }
+    };
+    let master_password = prompt_for_password();
+    let decrypted_password = match crypto::get_decrypted_password(&master_password,
+                                                                  password_data) {
+        Ok(pw) => pw,
+        Err(_) => {
+            println!("Wrong master password");
+            process::exit(1);
+        }
+    };
+    println!("Password for {} is {}", account, decrypted_password);
 }
 
 fn do_new(account: &str, password_file_path: &PathBuf) {
     let account_map = handle_read_result(read_password_file(password_file_path));
     let master_password = prompt_for_password();
-    let password_data = match crypto::create_encrypted_password(&master_password) {
+    let plaintext_password = password::generate_password();
+    let password_data = match crypto::create_encrypted_password(&plaintext_password,
+                                                                &master_password) {
         Ok(pwdata) => pwdata,
         Err(_) => {
             // When fixing error handling in crypto, update this
@@ -36,7 +59,7 @@ fn do_new(account: &str, password_file_path: &PathBuf) {
 
     // TODO: Handle error
     write_password_file(password_file_path, &output);
-    println!("Account {} added", account);
+    println!("Password {} saved for {}", plaintext_password, account);
 }
 
 fn do_change(account: &str, password_file_path: &PathBuf) {
