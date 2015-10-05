@@ -2,7 +2,7 @@ use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
 use std::string::String;
 
-use super::password::{PasswordData, generate_password};
+use super::password::PasswordData;
 
 pub use sodiumoxide::crypto::pwhash::SALTBYTES;
 pub use sodiumoxide::crypto::secretbox::NONCEBYTES;
