@@ -169,7 +169,7 @@ fn main() {
              .index(1));
 
     let app_matches = clap::App::new("assa")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("Command-line password manager")
         .setting(clap::AppSettings::GlobalVersion)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
