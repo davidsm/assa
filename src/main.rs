@@ -14,6 +14,10 @@ mod crypto;
 mod serialize;
 mod password;
 
+enum Confirmation {
+    Yes,
+    No
+}
 
 fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     let account_map = try!(read_password_file(password_file_path));
@@ -59,11 +63,48 @@ fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
 }
 
 fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
-    unimplemented!();
+    let account_map = try!(read_password_file(password_file_path));
+    let master_password = try!(prompt_for_password(true));
+    let plaintext_password = password::generate_password();
+    let password_data = try!(crypto::create_encrypted_password(&plaintext_password,
+                                                               &master_password)
+                             .or(Err("Something went wrong. Beats me what")));
+
+    let output = match serialize::change_account(account, password_data, &account_map) {
+        Ok(data) => data,
+        Err(serialize::AccountError::AccountNotFound) => {
+            return Err("Account doesn't exist");
+        }
+        Err(_) => {
+            return Err("Something went wrong. Beats me what");
+        }
+    };
+
+    try!(write_password_file(password_file_path, &output));
+    println!("Password changed to {} for {}", plaintext_password, account);
+    Ok(())
 }
 
 fn do_delete(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
-    unimplemented!();
+    let account_map = try!(read_password_file(password_file_path));
+    let confirmation = try!(prompt_for_confirmation("Really delete account?"));
+    match confirmation {
+        Confirmation::Yes => {
+            let output = match serialize::remove_account(account, &account_map) {
+                Ok(data) => data,
+                Err(serialize::AccountError::AccountNotFound) => {
+                    return Err("Account doesn't exist");
+                },
+                Err(_) => {
+                    return Err("Something went wrong. Beats me what");
+                }
+            };
+            try!(write_password_file(password_file_path, &output));
+            println!("Account deleted");
+        }
+        Confirmation::No => {}
+    }
+    Ok(())
 }
 
 fn prompt_for_password(repeat: bool) -> Result<String, &'static str> {
@@ -96,6 +137,18 @@ fn read_password() -> Result<String, &'static str> {
             Err("Failed to read password")
         }
     }
+}
+
+fn prompt_for_confirmation(question: &str) -> Result<Confirmation, &'static str> {
+    println!("{}", question);
+    let mut confirmation = String::new();
+    try!(io::stdin().read_line(&mut confirmation).or(Err("Failed to read from stdin")));
+    match confirmation.to_lowercase().trim() {
+        "yes" | "y" => Ok(Confirmation::Yes),
+        "no" | "n" => Ok(Confirmation::No),
+        _ => Err("Please answer yes or no")
+    }
+
 }
 
 fn read_password_file(path: &PathBuf) -> Result<String, &'static str> {
