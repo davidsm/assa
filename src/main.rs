@@ -27,13 +27,10 @@ fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
         }
     };
     let master_password = try!(prompt_for_password(false));
-    let decrypted_password = match crypto::get_decrypted_password(&master_password,
-                                                                  password_data) {
-        Ok(pw) => pw,
-        Err(_) => {
-            return Err("Wrong master password");
-        }
-    };
+    let decrypted_password = try!(crypto::get_decrypted_password(&master_password,
+                                                                password_data)
+                                  .or(Err("Wrong master password")));
+
     println!("Password for {} is {}", account, decrypted_password);
     Ok(())
 }
@@ -42,14 +39,9 @@ fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
     let account_map = try!(read_password_file(password_file_path));
     let master_password = try!(prompt_for_password(true));
     let plaintext_password = password::generate_password();
-    let password_data = match crypto::create_encrypted_password(&plaintext_password,
-                                                                &master_password) {
-        Ok(pwdata) => pwdata,
-        Err(_) => {
-            // When fixing error handling in crypto, update this
-            return Err("Something went wrong. Beats me what");
-        }
-    };
+    let password_data = try!(crypto::create_encrypted_password(&plaintext_password,
+                                                               &master_password)
+                             .or(Err("Something went wrong. Beats me what")));
 
     let output = match serialize::add_account(account, password_data, &account_map) {
         Ok(data) => data,
