@@ -72,10 +72,10 @@ mod test {
         let key_salt = pwhash::gen_salt();
         let encrypted: Vec<u8>;
         {
-            let key = get_key(password, key_salt).unwrap();
+            let key = get_key(password, &key_salt).unwrap();
             encrypted = encrypt_password(plaintext, &key, &nonce);
         }
-        let key = get_key(password, key_salt).unwrap();
+        let key = get_key(password, &key_salt).unwrap();
         let decrypted = decrypt_password(&encrypted, &key, &nonce)
             .unwrap();
         assert_eq!(plaintext.to_string(), decrypted);

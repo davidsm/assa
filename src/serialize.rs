@@ -192,24 +192,24 @@ mod test {
 
 
     // gmail
-    // nonce 0x01, 0x02, 0x25, 0x08
-    // salt 0x10, 0x02, 0x25, 0x08
+    // nonce [2; 24]
+    // salt [1; 32]
     // password 0xDE, 0xAD, 0xBE, 0xEF
     //
     // something
-    // nonce 0x0A, 0x0B, 0x0C, 0x0D
-    // salt 0xA0, 0xB0, 0xC0, 0xD0
+    // nonce [4; 24]
+    // salt [3; 24]
     // password 0xF0, 0x0D, 0xBE, 0xEF
     const VALID_ACCOUNT_STRUCTURE: &'static str = "{
     \"gmail\": {
-        \"nonce\": \"AQIlCA==\",
-        \"salt\": \"EAIlCA==\",
+        \"nonce\": \"AgICAgICAgICAgICAgICAgICAgICAgIC\",
+        \"salt\": \"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=\",
         \"password\": \"3q2+7w==\"
     },
 
     \"something\": {
-        \"nonce\": \"CgsMDQ==\",
-        \"salt\": \"oLDA0A==\",
+        \"nonce\": \"BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE\",
+        \"salt\": \"AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM=\",
         \"password\": \"8A2+7w==\"
     }
 }";
@@ -217,8 +217,8 @@ mod test {
     #[test]
     fn test_get_password_data() {
         let password_data = get_password_data_for("gmail", VALID_ACCOUNT_STRUCTURE).unwrap();
-        assert_eq!(&password_data.nonce, &BinaryData(vec![0x01,0x02,0x25,0x08]));
-        assert_eq!(&password_data.salt, &BinaryData(vec![0x10,0x02,0x25,0x08]));
+        assert_eq!(&password_data.nonce, &BinaryData([2; super::super::crypto::NONCEBYTES]));
+        assert_eq!(&password_data.salt, &BinaryData([1; super::super::crypto::SALTBYTES]));
         assert_eq!(&password_data.password, &BinaryData(vec![0xDE,0xAD,0xBE,0xEF]));
     }
 
@@ -249,9 +249,11 @@ mod test {
 
     #[test]
     fn test_add_new_account() {
+        let nonce = [1; super::super::crypto::NONCEBYTES];
+        let salt = [2; super::super::crypto::SALTBYTES];
         let pwdata = PasswordData {
-            salt: BinaryData(vec![0x04, 0x08, 0x0A, 0x0C]),
-            nonce: BinaryData(vec![0x01, 0x03, 0x05, 0x07]),
+            salt: BinaryData(salt),
+            nonce: BinaryData(nonce),
             password: BinaryData(vec![0x01, 0x02, 0x03, 0x04])
         };
         let new_json_structure = add_account("twitter", pwdata, VALID_ACCOUNT_STRUCTURE).unwrap();
@@ -263,9 +265,11 @@ mod test {
 
     #[test]
     fn test_add_account_already_exists() {
+        let nonce = [1; super::super::crypto::NONCEBYTES];
+        let salt = [2; super::super::crypto::SALTBYTES];
         let pwdata = PasswordData {
-            salt: BinaryData(vec![0x04, 0x08, 0x0A, 0x0C]),
-            nonce: BinaryData(vec![0x01, 0x03, 0x05, 0x07]),
+            salt: BinaryData(salt),
+            nonce: BinaryData(nonce),
             password: BinaryData(vec![0x01, 0x02, 0x03, 0x04])
         };
         let res = add_account("gmail", pwdata, VALID_ACCOUNT_STRUCTURE);
@@ -274,9 +278,11 @@ mod test {
 
     #[test]
     fn test_change_account() {
+        let nonce = [1; super::super::crypto::NONCEBYTES];
+        let salt = [2; super::super::crypto::SALTBYTES];
         let pwdata = PasswordData {
-            salt: BinaryData(vec![0x04, 0x08, 0x0A, 0x0C]),
-            nonce: BinaryData(vec![0x01, 0x03, 0x05, 0x07]),
+            salt: BinaryData(salt),
+            nonce: BinaryData(nonce),
             password: BinaryData(vec![0x01, 0x02, 0x03, 0x04])
         };
         let new_json_structure = change_account("gmail", pwdata, VALID_ACCOUNT_STRUCTURE).unwrap();
