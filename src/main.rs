@@ -19,6 +19,9 @@ enum Confirmation {
     No
 }
 
+const UNKNOWN_ERROR_MESSAGE: &'static str = "Something went wrong. Beats me what";
+
+
 fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     let account_map = try!(read_password_file(password_file_path));
     let hashed_account_name = crypto::hash_account_name(account);
@@ -29,13 +32,19 @@ fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
             return Err("Account not found");
         },
         Err(_) => {
-            return Err("Something went wrong. Beats me what");
+            return Err(UNKNOWN_ERROR_MESSAGE);
         }
     };
     let master_password = try!(prompt_for_password(false));
     let decrypted_password = try!(crypto::get_decrypted_password(&master_password,
                                                                 password_data)
-                                  .or(Err("Wrong master password")));
+                                  .map_err(|err| {
+                                      match err {
+                                          crypto::CryptoError::DecryptionFailure =>
+                                              "Wrong master password",
+                                          _ => UNKNOWN_ERROR_MESSAGE
+                                      }
+                                  }));
 
     println!("Password for {} is {}", account, decrypted_password);
     Ok(())
@@ -47,7 +56,7 @@ fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
     let plaintext_password = password::generate_password();
     let password_data = try!(crypto::create_encrypted_password(&plaintext_password,
                                                                &master_password)
-                             .or(Err("Something went wrong. Beats me what")));
+                             .or(Err(UNKNOWN_ERROR_MESSAGE)));
 
     let hashed_account_name = crypto::hash_account_name(account);
 
@@ -58,7 +67,7 @@ fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
             return Err("Account already exists");
         }
         Err(_) => {
-            return Err("Something went wrong. Beats me what");
+            return Err(UNKNOWN_ERROR_MESSAGE);
         }
     };
 
@@ -73,7 +82,7 @@ fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
     let plaintext_password = password::generate_password();
     let password_data = try!(crypto::create_encrypted_password(&plaintext_password,
                                                                &master_password)
-                             .or(Err("Something went wrong. Beats me what")));
+                             .or(Err(UNKNOWN_ERROR_MESSAGE)));
 
     let hashed_account_name = crypto::hash_account_name(account);
 
@@ -84,7 +93,7 @@ fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
             return Err("Account doesn't exist");
         }
         Err(_) => {
-            return Err("Something went wrong. Beats me what");
+            return Err(UNKNOWN_ERROR_MESSAGE);
         }
     };
 
@@ -108,7 +117,7 @@ fn do_delete(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
                     return Err("Account doesn't exist");
                 },
                 Err(_) => {
-                    return Err("Something went wrong. Beats me what");
+                    return Err(UNKNOWN_ERROR_MESSAGE);
                 }
             };
             try!(write_password_file(password_file_path, &output));

@@ -10,14 +10,24 @@ use super::password::PasswordData;
 pub use sodiumoxide::crypto::pwhash::SALTBYTES;
 pub use sodiumoxide::crypto::secretbox::NONCEBYTES;
 
-fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, ()> {
+pub enum CryptoError {
+    KeyDerivationFailure,
+    DecryptionFailure,
+    DecodingFailure
+}
+
+use self::CryptoError::*;
+
+
+fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, CryptoError> {
     let password_bytes = password.as_bytes();
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
     {
         let secretbox::Key(ref mut key_bytes) = key;
         try!(pwhash::derive_key(key_bytes, password_bytes, &salt,
-                           pwhash::OPSLIMIT_INTERACTIVE,
-                           pwhash::MEMLIMIT_INTERACTIVE));
+                                pwhash::OPSLIMIT_INTERACTIVE,
+                                pwhash::MEMLIMIT_INTERACTIVE)
+             .or(Err(KeyDerivationFailure)));
     }
     Ok(key)
 }
@@ -29,16 +39,17 @@ fn encrypt_password(plaintext: &str, key: &secretbox::Key,
 }
 
 fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
-                        nonce: &secretbox::Nonce) -> Result<String, ()> {
-    let decrypted = try!(secretbox::open(&ciphertext, &nonce, &key));
+                        nonce: &secretbox::Nonce) -> Result<String, CryptoError> {
+    let decrypted = try!(secretbox::open(&ciphertext, &nonce, &key)
+                         .or(Err(DecryptionFailure)));
     match String::from_utf8(decrypted) {
         Ok(decrypted_text) => Ok(decrypted_text),
-        Err(_) => Err(())
+        Err(_) => Err(DecodingFailure)
     }
 }
 
 pub fn create_encrypted_password(plaintext_password: &str, master_password: &str)
-                                 -> Result<PasswordData, ()> {
+                                 -> Result<PasswordData, CryptoError> {
     let salt = pwhash::gen_salt();
     let key = try!(get_key(master_password, &salt));
 
@@ -51,7 +62,7 @@ pub fn create_encrypted_password(plaintext_password: &str, master_password: &str
 }
 
 pub fn get_decrypted_password(master_password: &str, password_data: PasswordData)
-                              -> Result<String, ()> {
+                              -> Result<String, CryptoError> {
     let key = try!(get_key(master_password, &pwhash::Salt(password_data.salt())));
     let decrypted_password = try!(decrypt_password(&password_data.password(),&key,
                                                    &secretbox::Nonce(password_data.nonce())));
