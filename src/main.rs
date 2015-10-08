@@ -173,24 +173,22 @@ fn prompt_for_confirmation(question: &str) -> Result<Confirmation, &'static str>
 }
 
 fn read_password_file(path: &PathBuf) -> Result<String, &'static str> {
-    File::open(path).or(Err("Failed to open password file"))
-        .and_then(|mut f| {
-            let mut output = String::new();
-            match f.read_to_string(&mut output) {
-                Ok(_) => Ok(output),
-                Err(err) => {
-                    match err.kind() {
-                        io::ErrorKind::NotFound => {
-                            println!("Password file doesn't exist. Creating a new file");
-                            Ok("{}".to_string())
-                        },
-                        _ => {
-                            Err("Error reading from password file")
-                        }
-                    }
-                }
+    let mut fd = match File::open(path) {
+        Ok(f) => f,
+        Err(err) => {
+            match err.kind() {
+                io::ErrorKind::NotFound => {
+                    println!("Password file doesn't exist. Creating a new file");
+                    return Ok("{}".to_string());
+                },
+                _ => return Err(UNKNOWN_ERROR_MESSAGE)
             }
-        })
+        }
+    };
+
+    let mut output = String::new();
+    try!(fd.read_to_string(&mut output).or(Err("Error reading from password file")));
+    Ok(output)
 }
 
 fn write_password_file(path: &PathBuf, content: &str) -> Result<(), &'static str> {
