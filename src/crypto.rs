@@ -10,6 +10,7 @@ use super::password::PasswordData;
 pub use sodiumoxide::crypto::pwhash::SALTBYTES;
 pub use sodiumoxide::crypto::secretbox::NONCEBYTES;
 
+#[derive(Debug, PartialEq)]
 pub enum CryptoError {
     KeyDerivationFailure,
     DecryptionFailure,
