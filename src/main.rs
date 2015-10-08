@@ -95,7 +95,7 @@ fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
 
 fn do_delete(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     let account_map = try!(read_password_file(password_file_path));
-    let confirmation = try!(prompt_for_confirmation("Really delete account?"));
+    let confirmation = try!(prompt_for_confirmation("Really delete account (yes/no)?"));
 
     let hashed_account_name = crypto::hash_account_name(account);
 
