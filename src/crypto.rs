@@ -7,7 +7,7 @@ use super::password::PasswordData;
 pub use sodiumoxide::crypto::pwhash::SALTBYTES;
 pub use sodiumoxide::crypto::secretbox::NONCEBYTES;
 
-pub fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, ()> {
+fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, ()> {
     let password_bytes = password.as_bytes();
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
     {
@@ -19,13 +19,13 @@ pub fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, ()
     Ok(key)
 }
 
-pub fn encrypt_password(plaintext: &str, key: &secretbox::Key,
+fn encrypt_password(plaintext: &str, key: &secretbox::Key,
                         nonce: &secretbox::Nonce) -> Vec<u8> {
     let plaintext_bytes = plaintext.as_bytes();
     return secretbox::seal(&plaintext_bytes, &nonce, &key);
 }
 
-pub fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
+fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
                         nonce: &secretbox::Nonce) -> Result<String, ()> {
     let decrypted = try!(secretbox::open(&ciphertext, &nonce, &key));
     match String::from_utf8(decrypted) {
