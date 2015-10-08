@@ -21,7 +21,9 @@ enum Confirmation {
 
 fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     let account_map = try!(read_password_file(password_file_path));
-    let password_data = match serialize::get_password_data_for(account, &account_map) {
+    let hashed_account_name = crypto::hash_account_name(account);
+    let password_data = match serialize::get_password_data_for(&hashed_account_name,
+                                                               &account_map) {
         Ok(pwdata) => pwdata,
         Err(serialize::AccountError::AccountNotFound) => {
             return Err("Account not found");
@@ -47,7 +49,10 @@ fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
                                                                &master_password)
                              .or(Err("Something went wrong. Beats me what")));
 
-    let output = match serialize::add_account(account, password_data, &account_map) {
+    let hashed_account_name = crypto::hash_account_name(account);
+
+    let output = match serialize::add_account(&hashed_account_name, password_data,
+                                              &account_map) {
         Ok(data) => data,
         Err(serialize::AccountError::AccountAlreadyExists) => {
             return Err("Account already exists");
@@ -70,7 +75,10 @@ fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
                                                                &master_password)
                              .or(Err("Something went wrong. Beats me what")));
 
-    let output = match serialize::change_account(account, password_data, &account_map) {
+    let hashed_account_name = crypto::hash_account_name(account);
+
+    let output = match serialize::change_account(&hashed_account_name, password_data,
+                                                 &account_map) {
         Ok(data) => data,
         Err(serialize::AccountError::AccountNotFound) => {
             return Err("Account doesn't exist");
@@ -88,9 +96,13 @@ fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
 fn do_delete(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
     let account_map = try!(read_password_file(password_file_path));
     let confirmation = try!(prompt_for_confirmation("Really delete account?"));
+
+    let hashed_account_name = crypto::hash_account_name(account);
+
     match confirmation {
         Confirmation::Yes => {
-            let output = match serialize::remove_account(account, &account_map) {
+            let output = match serialize::remove_account(&hashed_account_name,
+                                                         &account_map) {
                 Ok(data) => data,
                 Err(serialize::AccountError::AccountNotFound) => {
                     return Err("Account doesn't exist");

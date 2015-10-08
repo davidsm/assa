@@ -1,5 +1,8 @@
 use sodiumoxide::crypto::pwhash;
 use sodiumoxide::crypto::secretbox;
+use sodiumoxide::crypto::hash::sha256;
+use rustc_serialize::base64::STANDARD as BASE64_STANDARD;
+use rustc_serialize::base64::ToBase64;
 use std::string::String;
 
 use super::password::PasswordData;
@@ -55,9 +58,14 @@ pub fn get_decrypted_password(master_password: &str, password_data: PasswordData
     Ok(decrypted_password)
 }
 
+pub fn hash_account_name(account_name: &str) -> String {
+    let sha256::Digest(hashed_name) = sha256::hash(account_name.as_bytes());
+    hashed_name.to_base64(BASE64_STANDARD)
+}
+
 #[cfg(test)]
 mod test {
-    use super::{get_key, encrypt_password, decrypt_password};
+    use super::{get_key, encrypt_password, decrypt_password, hash_account_name};
     use sodiumoxide::crypto::pwhash;
     use sodiumoxide::crypto::secretbox;
 
@@ -79,6 +87,15 @@ mod test {
         let decrypted = decrypt_password(&encrypted, &key, &nonce)
             .unwrap();
         assert_eq!(plaintext.to_string(), decrypted);
+    }
+
+    #[test]
+    fn test_hash() {
+        // Silly sanity check
+        let account_name = "gmail";
+        let hash1 = hash_account_name(account_name);
+        let hash2 = hash_account_name(account_name);
+        assert_eq!(hash1, hash2);
     }
 
 }
