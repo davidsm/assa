@@ -23,7 +23,7 @@ const UNKNOWN_ERROR_MESSAGE: &'static str = "Something went wrong. Beats me what
 
 
 fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
-    let account_map = try!(read_password_file(password_file_path));
+    let account_map = try!(read_password_file_if_exists(password_file_path));
     let hashed_account_name = crypto::hash_account_name(account);
     let password_data = match serialize::get_password_data_for(&hashed_account_name,
                                                                &account_map) {
@@ -51,7 +51,20 @@ fn do_get(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
 }
 
 fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
-    let account_map = try!(read_password_file(password_file_path));
+    let account_map = match read_password_file(password_file_path) {
+        Ok(acc_map) => acc_map,
+        Err(err) => {
+            match err.kind() {
+                io::ErrorKind::NotFound => {
+                    println!("Password file doesn't exist. Creating a new file");
+                    "{}".to_string()
+                },
+                _ => {
+                    return Err(io_error_to_string(err))
+                }
+            }
+        }
+    };
     let master_password = try!(prompt_for_password(true));
     let plaintext_password = password::generate_password();
     let password_data = try!(crypto::create_encrypted_password(&plaintext_password,
@@ -77,7 +90,7 @@ fn do_new(account: &str, password_file_path: &PathBuf) -> Result<(), &'static st
 }
 
 fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
-    let account_map = try!(read_password_file(password_file_path));
+    let account_map = try!(read_password_file_if_exists(password_file_path));
     let master_password = try!(prompt_for_password(true));
     let plaintext_password = password::generate_password();
     let password_data = try!(crypto::create_encrypted_password(&plaintext_password,
@@ -103,7 +116,7 @@ fn do_change(account: &str, password_file_path: &PathBuf) -> Result<(), &'static
 }
 
 fn do_delete(account: &str, password_file_path: &PathBuf) -> Result<(), &'static str> {
-    let account_map = try!(read_password_file(password_file_path));
+    let account_map = try!(read_password_file_if_exists(password_file_path));
     let confirmation = try!(prompt_for_confirmation("Really delete account (yes/no)?"));
 
     let hashed_account_name = crypto::hash_account_name(account);
@@ -172,23 +185,23 @@ fn prompt_for_confirmation(question: &str) -> Result<Confirmation, &'static str>
 
 }
 
-fn read_password_file(path: &PathBuf) -> Result<String, &'static str> {
-    let mut fd = match File::open(path) {
-        Ok(f) => f,
-        Err(err) => {
-            match err.kind() {
-                io::ErrorKind::NotFound => {
-                    println!("Password file doesn't exist. Creating a new file");
-                    return Ok("{}".to_string());
-                },
-                _ => return Err(UNKNOWN_ERROR_MESSAGE)
-            }
-        }
-    };
-
+fn read_password_file(path: &PathBuf) -> Result<String, io::Error> {
+    let mut fd = try!(File::open(path));
     let mut output = String::new();
-    try!(fd.read_to_string(&mut output).or(Err("Error reading from password file")));
+    try!(fd.read_to_string(&mut output));
     Ok(output)
+}
+
+fn read_password_file_if_exists(path: &PathBuf) -> Result<String, &'static str> {
+    read_password_file(path).map_err(io_error_to_string)
+}
+
+fn io_error_to_string(err: io::Error) -> &'static str {
+    match err.kind() {
+        io::ErrorKind::NotFound => "Password file not found",
+        io::ErrorKind::PermissionDenied => "Failed to read password file: Permission denied",
+        _ => UNKNOWN_ERROR_MESSAGE
+    }
 }
 
 fn write_password_file(path: &PathBuf, content: &str) -> Result<(), &'static str> {
