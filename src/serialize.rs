@@ -3,6 +3,7 @@ use rustc_serialize::json;
 use rustc_serialize::base64;
 use rustc_serialize::base64::{ToBase64, FromBase64};
 use std::collections::HashMap;
+use std::result;
 
 use password::PasswordData;
 use crypto::{SALTBYTES, NONCEBYTES};
@@ -19,13 +20,13 @@ impl<T: Base64Encodable> ToBase64 for BinaryData<T> {
 }
 
 impl<T: Base64Encodable> Encodable for BinaryData<T> {
-    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+    fn encode<S: Encoder>(&self, s: &mut S) -> result::Result<(), S::Error> {
         s.emit_str(&self.to_base64(base64::STANDARD))
     }
 }
 
 impl Decodable for BinaryData<Vec<u8>> {
-    fn decode<D: Decoder>(d: &mut D) -> Result<Self, D::Error> {
+    fn decode<D: Decoder>(d: &mut D) -> result::Result<Self, D::Error> {
         let base64_str = try!(d.read_str());
         base64_str.from_base64().or(Err(d.error("Base64 decoding failed"))).
             and_then(|val| { Ok(BinaryData(val)) })
@@ -33,7 +34,7 @@ impl Decodable for BinaryData<Vec<u8>> {
 }
 
 impl Decodable for BinaryData<[u8; SALTBYTES]> {
-    fn decode<D: Decoder>(d: &mut D) -> Result<Self, D::Error> {
+    fn decode<D: Decoder>(d: &mut D) -> result::Result<Self, D::Error> {
         let base64_str = try!(d.read_str());
         base64_str.from_base64().or(Err(d.error("Base64 decoding failed"))).
             and_then(|val| {
@@ -47,7 +48,7 @@ impl Decodable for BinaryData<[u8; SALTBYTES]> {
 }
 
 impl Decodable for BinaryData<[u8; NONCEBYTES]> {
-    fn decode<D: Decoder>(d: &mut D) -> Result<Self, D::Error> {
+    fn decode<D: Decoder>(d: &mut D) -> result::Result<Self, D::Error> {
         let base64_str = try!(d.read_str());
         base64_str.from_base64().or(Err(d.error("Base64 decoding failed"))).
             and_then(|val| {
@@ -97,6 +98,8 @@ pub enum AccountError {
     AccountAlreadyExists
 }
 
+pub type Result<T> = result::Result<T, AccountError>;
+
 impl From<json::DecoderError> for AccountError {
     fn from(err: json::DecoderError) -> AccountError {
         match err {
@@ -137,7 +140,7 @@ use self::SerializationErrorType::*;
 
 
 pub fn get_password_data_for(account_name: &str,
-                             accounts: &str,) -> Result<PasswordData, AccountError> {
+                             accounts: &str,) -> Result<PasswordData> {
 
     let mut account_map = try!(get_account_map(accounts));
 
@@ -146,7 +149,7 @@ pub fn get_password_data_for(account_name: &str,
 }
 
 pub fn add_account(account_name: &str, password_data: PasswordData,
-                   accounts: &str) -> Result<String, AccountError> {
+                   accounts: &str) -> Result<String> {
     let mut account_map = try!(get_account_map(accounts));
     if account_map.contains_key(account_name) {
         Err(AccountAlreadyExists)
@@ -158,7 +161,7 @@ pub fn add_account(account_name: &str, password_data: PasswordData,
 }
 
 pub fn change_account(account_name: &str, password_data: PasswordData,
-                      accounts: &str) -> Result<String, AccountError> {
+                      accounts: &str) -> Result<String> {
     let mut account_map = try!(get_account_map(accounts));
     if !account_map.contains_key(account_name) {
         Err(AccountNotFound)
@@ -170,7 +173,7 @@ pub fn change_account(account_name: &str, password_data: PasswordData,
 }
 
 pub fn remove_account(account_name: &str,
-                      accounts: &str,) -> Result<String, AccountError> {
+                      accounts: &str,) -> Result<String> {
     let mut account_map = try!(get_account_map(accounts));
 
     if account_map.remove(account_name).is_none() {
@@ -179,7 +182,7 @@ pub fn remove_account(account_name: &str,
     json::encode(&account_map).map_err(|err| { AccountError::from(err) })
 }
 
-fn get_account_map(accounts: &str) -> Result<AccountMap, AccountError> {
+fn get_account_map(accounts: &str) -> Result<AccountMap> {
     let accmap: AccountMap = try!(json::decode(accounts));
     Ok(accmap)
 }

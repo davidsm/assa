@@ -4,6 +4,7 @@ use sodiumoxide::crypto::hash::sha256;
 use rustc_serialize::base64::STANDARD as BASE64_STANDARD;
 use rustc_serialize::base64::ToBase64;
 use std::string::String;
+use std::result;
 
 use super::password::PasswordData;
 
@@ -17,10 +18,12 @@ pub enum CryptoError {
     DecodingFailure
 }
 
+pub type Result<T> = result::Result<T, CryptoError>;
+
 use self::CryptoError::*;
 
 
-fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key, CryptoError> {
+fn get_key(password: &str, salt: &pwhash::Salt) -> Result<secretbox::Key> {
     let password_bytes = password.as_bytes();
     let mut key = secretbox::Key([0; secretbox::KEYBYTES]);
     {
@@ -40,7 +43,7 @@ fn encrypt_password(plaintext: &str, key: &secretbox::Key,
 }
 
 fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
-                        nonce: &secretbox::Nonce) -> Result<String, CryptoError> {
+                        nonce: &secretbox::Nonce) -> Result<String> {
     let decrypted = try!(secretbox::open(&ciphertext, &nonce, &key)
                          .or(Err(DecryptionFailure)));
     match String::from_utf8(decrypted) {
@@ -50,7 +53,7 @@ fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
 }
 
 pub fn create_encrypted_password(plaintext_password: &str, master_password: &str)
-                                 -> Result<PasswordData, CryptoError> {
+                                 -> Result<PasswordData> {
     let salt = pwhash::gen_salt();
     let key = try!(get_key(master_password, &salt));
 
@@ -63,7 +66,7 @@ pub fn create_encrypted_password(plaintext_password: &str, master_password: &str
 }
 
 pub fn get_decrypted_password(master_password: &str, password_data: PasswordData)
-                              -> Result<String, CryptoError> {
+                              -> Result<String> {
     let key = try!(get_key(master_password, &pwhash::Salt(password_data.salt())));
     let decrypted_password = try!(decrypt_password(&password_data.password(),&key,
                                                    &secretbox::Nonce(password_data.nonce())));
