@@ -156,7 +156,7 @@ pub fn add_account(account_name: &str, password_data: PasswordData,
     }
     else {
         account_map.insert(account_name.to_string(), password_data);
-        json::encode(&account_map).map_err(|err| { AccountError::from(err) })
+        json_encode_account_map(&account_map)
     }
 }
 
@@ -168,7 +168,7 @@ pub fn change_account(account_name: &str, password_data: PasswordData,
     }
     else {
         account_map.insert(account_name.to_string(), password_data);
-        json::encode(&account_map).map_err(|err| { AccountError::from(err) })
+        json_encode_account_map(&account_map)
     }
 }
 
@@ -179,12 +179,16 @@ pub fn remove_account(account_name: &str,
     if account_map.remove(account_name).is_none() {
         return Err(AccountNotFound)
     }
-    json::encode(&account_map).map_err(|err| { AccountError::from(err) })
+    json_encode_account_map(&account_map)
 }
 
 fn get_account_map(accounts: &str) -> Result<AccountMap> {
     let accmap: AccountMap = try!(json::decode(accounts));
     Ok(accmap)
+}
+
+fn json_encode_account_map(account_map: &AccountMap) -> Result<String> {
+    json::encode(account_map).map_err(|err| { AccountError::from(err) })
 }
 
 #[cfg(test)]

@@ -25,18 +25,18 @@ impl PasswordData {
         }
     }
 
-    pub fn password(&self) -> Vec<u8> {
-        let &BinaryData(ref pw) = &self.password;
-        pw.clone()
+    pub fn password(&self) -> &[u8] {
+        let BinaryData(ref pw) = self.password;
+        pw
     }
 
     pub fn salt(&self) -> [u8; SALTBYTES] {
-        let &BinaryData(ref salt) = &self.salt;
+        let BinaryData(ref salt) = self.salt;
         salt.clone()
     }
 
     pub fn nonce(&self) -> [u8; NONCEBYTES] {
-        let &BinaryData(ref nonce) = &self.nonce;
+        let BinaryData(ref nonce) = self.nonce;
         nonce.clone()
     }
 }

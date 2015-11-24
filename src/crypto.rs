@@ -42,9 +42,9 @@ fn encrypt_password(plaintext: &str, key: &secretbox::Key,
     return secretbox::seal(&plaintext_bytes, &nonce, &key);
 }
 
-fn decrypt_password(ciphertext: &Vec<u8>, key: &secretbox::Key,
+fn decrypt_password(ciphertext: &[u8], key: &secretbox::Key,
                         nonce: &secretbox::Nonce) -> Result<String> {
-    let decrypted = try!(secretbox::open(&ciphertext, &nonce, &key)
+    let decrypted = try!(secretbox::open(ciphertext, &nonce, &key)
                          .or(Err(DecryptionFailure)));
     match String::from_utf8(decrypted) {
         Ok(decrypted_text) => Ok(decrypted_text),
